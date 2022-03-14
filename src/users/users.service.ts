@@ -1,6 +1,8 @@
+import { BanUserDto } from './dto/ban-user.dto';
+import { AddRoleDto } from './dto/add-role.dto';
 import { RolesService } from './../roles/roles.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { User } from './users.model';
 
@@ -26,6 +28,27 @@ export class UsersService {
 
     async getUserByEmail(email: string) {
         const user = await this.userRepository.findOne({ where: { email }, include: { all: true } })
+        return user;
+    }
+
+    async addRole(dto: AddRoleDto) {
+        const user = await this.userRepository.findByPk(dto.userId);
+        const role = await this.roleService.getRoleByValue(dto.value);
+        if (user && role) {
+            await user.$add('role', role.id);
+            return dto;
+        }
+        throw new HttpException('User or role not found', HttpStatus.NOT_FOUND);
+    }
+
+    async ban(dto: BanUserDto) {
+        const user = await this.userRepository.findByPk(dto.userId);
+        if (!user) {
+            throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+        }
+        user.banned = true;
+        user.banReason = dto.banReason;
+        await user.save();
         return user;
     }
 };
